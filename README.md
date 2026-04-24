@@ -110,46 +110,37 @@ http://localhost:8080/smart-campus-api/api/v1
 ### 1. System Discovery
 
 ```bash
-curl -X GET http://localhost:8080/smart-campus-api/api/v1 \
-  -H "Accept: application/json"
+curl -X GET http://localhost:8080/smart-campus-api/api/v1 -H "Accept: application/json"
 ```
 
 ### 2. Create a New Room
 
 ```bash
-curl -X POST http://localhost:8080/smart-campus-api/api/v1/rooms \
-  -H "Content-Type: application/json" \
-  -d '{"id":"LIB-301", "name":"Library Quiet Study", "capacity":50}'
+curl -X POST http://localhost:8080/smart-campus-api/api/v1/rooms -H "Content-Type: application/json" -d "{\"id\":\"LIB-301\", \"name\":\"Library Quiet Study\", \"capacity\":50}"
 ```
 
 ### 3. Retrieve All Rooms
 
 ```bash
-curl -X GET http://localhost:8080/smart-campus-api/api/v1/rooms \
-  -H "Accept: application/json"
+curl -X GET http://localhost:8080/smart-campus-api/api/v1/rooms -H "Accept: application/json"
 ```
 
 ### 4. Register a New Sensor
 
 ```bash
-curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors \
-  -H "Content-Type: application/json" \
-  -d '{"id":"TEMP-001", "type":"Temperature", "status":"ACTIVE", "roomId":"LIB-301"}'
+curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors -H "Content-Type: application/json" -d "{\"id\":\"TEMP-001\", \"type\":\"Temperature\", \"status\":\"ACTIVE\", \"roomId\":\"LIB-301\"}"
 ```
 
 ### 5. Filter Sensors by Type
 
 ```bash
-curl -X GET "http://localhost:8080/smart-campus-api/api/v1/sensors?type=Temperature" \
-  -H "Accept: application/json"
+curl -X GET "http://localhost:8080/smart-campus-api/api/v1/sensors?type=Temperature" -H "Accept: application/json"
 ```
 
 ### 6. Add a Sensor Reading
 
 ```bash
-curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors/TEMP-001/readings \
-  -H "Content-Type: application/json" \
-  -d '{"value": 24.5}'
+curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors/TEMP-001/readings -H "Content-Type: application/json" -d "{\"value\": 24.5}"
 ```
 
 ---
@@ -160,17 +151,17 @@ curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors/TEMP-001/read
 
 #### 1. Default Lifecycle of a JAX-RS Resource Class & Data Synchronization
 
-By default, the JAX-RS runtime uses a **Per-Request lifecycle** — a brand-new instance of a Resource class (such as `RoomResource`) is created for every incoming HTTP request and destroyed once the response is sent.
+By default, the JAX-RS runtime uses a Per-Request lifecycle — a brand-new instance of a Resource class (such as RoomResource) is created for every incoming HTTP request and destroyed once the response is sent.
 
-This has significant implications for in-memory data management. A high-traffic API processes multiple requests simultaneously, meaning multiple resource class instances will attempt to read and write to backend data structures concurrently. Using standard collections like `HashMap` or `ArrayList` would create race conditions, leading to thread-safety failures, overwritten data, or `ConcurrentModificationException` crashes.
+This has significant implications for in-memory data management. A high-traffic API processes multiple requests simultaneously, meaning multiple resource class instances will attempt to read and write to backend data structures concurrently. Using standard collections like HashMap or ArrayList would create race conditions, leading to thread-safety failures, overwritten data, or ConcurrentModificationException crashes.
 
-To prevent data loss, the mock database relies exclusively on **`ConcurrentHashMap`** and properly **synchronized block mechanisms**.
+To prevent data loss, the mock database relies exclusively on ConcurrentHashMap and properly synchronized block mechanisms.
 
 #### 2. The Benefits of Hypermedia (HATEOAS) in Advanced RESTful Design
 
-HATEOAS (Hypermedia as the Engine of Application State) transforms a static API into a **dynamic, self-documenting state machine**. By embedding navigable links in JSON responses (such as in the Discovery endpoint), the server explicitly tells the client what state transitions and resources are currently available.
+HATEOAS (Hypermedia as the Engine of Application State) transforms a static API into a dynamic, self-documenting state machine. By embedding navigable links in JSON responses (such as in the Discovery endpoint), the server explicitly tells the client what state transitions and resources are currently available.
 
-This **completely decouples the client from the server's URI routing structure**. Client developers program against the "rooms" link provided by the Discovery endpoint rather than hardcoding `/api/v1/rooms`. If backend routing ever changes, client code remains unbroken — vastly improving the maintainability and resilience of the distributed system.
+This completely decouples the client from the server's URI routing structure. Client developers program against the "rooms" link provided by the Discovery endpoint rather than hardcoding /api/v1/rooms. If backend routing ever changes, client code remains unbroken — vastly improving the maintainability and resilience of the distributed system.
 
 ---
 
@@ -180,17 +171,17 @@ This **completely decouples the client from the server's URI routing structure**
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| **IDs only** | Minimal payload, conserves bandwidth, low serialization overhead | Forces the "N+1 query pattern" — one request for IDs, then N more for details; introduces severe network latency |
-| **Full objects** | Resolves N+1 in a single round-trip; all UI data delivered upfront | Larger initial payload |
+| IDs only | Minimal payload, conserves bandwidth, low serialization overhead | Forces the "N+1 query pattern" — one request for IDs, then N more for details; introduces severe network latency |
+| Full objects | Resolves N+1 in a single round-trip; all UI data delivered upfront | Larger initial payload |
 
-Returning **full objects** is generally preferred. Modern networks handle reasonably sized JSON arrays efficiently, and the elimination of subsequent requests greatly optimizes client-side rendering speed.
+Returning full objects is generally preferred. Modern networks handle reasonably sized JSON arrays efficiently, and the elimination of subsequent requests greatly optimizes client-side rendering speed.
 
 #### 2. Idempotency of the DELETE Operation
 
-The `DELETE` operation in `RoomResource` is **strictly idempotent**. An operation is idempotent if executing it multiple times produces the same server state as executing it once.
+The DELETE operation in RoomResource is strictly idempotent. An operation is idempotent if executing it multiple times produces the same server state as executing it once.
 
-- **First call:** If no active sensors exist, the room is removed from the `ConcurrentHashMap` and the server returns `204 No Content`.
-- **Subsequent calls:** The server finds the room is already absent, safely bypasses the removal logic, and still returns `204 No Content`.
+- **First call:** If no active sensors exist, the room is removed from the ConcurrentHashMap and the server returns 204 No Content.
+- **Subsequent calls:** The server finds the room is already absent, safely bypasses the removal logic, and still returns 204 No Content.
 
 The server state remains unchanged across repeated calls — satisfying the strict definition of REST idempotency.
 
@@ -200,18 +191,18 @@ The server state remains unchanged across repeated calls — satisfying the stri
 
 #### 1. Technical Consequences of a MediaType Mismatch
 
-The `@Consumes(APPLICATION_JSON)` annotation enforces the API contract by defining the data format the server accepts.
+The @Consumes(APPLICATION_JSON) annotation enforces the API contract by defining the data format the server accepts.
 
-If a client sends a payload as `text/plain` or `application/xml`, the JAX-RS runtime intercepts the request **before it reaches any Java method logic**. It inspects the `Content-Type` header, finds a mismatch, and immediately returns **`HTTP 415 Unsupported Media Type`**. This automatic validation prevents incompatible data from crashing the internal JSON parser and ensures the backend only processes correctly formatted structures.
+If a client sends a payload as text/plain or application/xml, the JAX-RS runtime intercepts the request before it reaches any Java method logic. It inspects the Content-Type header, finds a mismatch, and immediately returns HTTP 415 Unsupported Media Type. This automatic validation prevents incompatible data from crashing the internal JSON parser and ensures the backend only processes correctly formatted structures.
 
 #### 2. Query Parameters vs. Path Parameters for Filtering
 
 | Parameter Type | Intended Use |
 |----------------|-------------|
-| **Path parameters** | Identify a unique or hierarchical resource (e.g., a specific sensor by ID) |
-| **Query parameters** | Filter or modify the view of a collection without changing its core identity |
+| Path parameters | Identify a unique or hierarchical resource (e.g., a specific sensor by ID) |
+| Query parameters | Filter or modify the view of a collection without changing its core identity |
 
-The primary architectural advantage of query parameters is **composability**. Multiple optional filters can be combined cleanly (e.g., `?type=CO2&status=ACTIVE`). Using path parameters for filtering causes URL namespace pollution and forces complex, brittle routing logic for every possible filter combination.
+The primary architectural advantage of query parameters is composability. Multiple optional filters can be combined cleanly (e.g., ?type=CO2&status=ACTIVE). Using path parameters for filtering causes URL namespace pollution and forces complex, brittle routing logic for every possible filter combination.
 
 ---
 
@@ -221,36 +212,36 @@ The primary architectural advantage of query parameters is **composability**. Mu
 
 Defining every nested path within a single controller class causes it to deteriorate into a bloated, tightly coupled "God Object" — thousands of lines long, difficult to maintain, and prone to version control conflicts.
 
-The **Sub-Resource Locator pattern** enforces strict Separation of Concerns through delegation. Instead of handling readings logic itself, `SensorResource` acts as a router: upon receiving `/sensors/{sensorId}/readings`, it extracts the ID context and delegates to a new instance of `SensorReadingResource`.
+The Sub-Resource Locator pattern enforces strict Separation of Concerns through delegation. Instead of handling readings logic itself, SensorResource acts as a router: upon receiving /sensors/{sensorId}/readings, it extracts the ID context and delegates to a new instance of SensorReadingResource.
 
-**Key benefits for large-scale APIs:**
+Key benefits for large-scale APIs:
 
 - **Maintainability:** Classes remain lightweight and focused on exactly one domain entity.
-- **Reusability:** `SensorReadingResource` is fully decoupled from its parent's routing annotations and can be reused in other contexts.
+- **Reusability:** SensorReadingResource is fully decoupled from its parent's routing annotations and can be reused in other contexts.
 - **Complexity Management:** Delegating down a chain of specialized classes allows developers to navigate and update deep hierarchies without risking breaking changes to the broader application.
 
 ---
 
 ### Part 5: Advanced Error Handling, Exception Mapping & Logging
 
-#### 1. Semantic Accuracy: `422 Unprocessable Entity` vs. `404 Not Found`
+#### 1. Semantic Accuracy: 422 Unprocessable Entity vs. 404 Not Found
 
-Returning `404` implies the target URI endpoint could not be located. However, when a client sends a `POST` to a valid endpoint with a `roomId` foreign key that doesn't exist in the database, a `404` is misleading.
+Returning 404 implies the target URI endpoint could not be located. However, when a client sends a POST to a valid endpoint with a roomId foreign key that doesn't exist in the database, a 404 is misleading.
 
-**`422 Unprocessable Entity`** is semantically correct for this scenario — it communicates that the server understood the content type, the JSON syntax was valid, and the endpoint was reached, but the request could not be processed due to a **semantic business logic error** (the missing dependency).
+422 Unprocessable Entity is semantically correct for this scenario — it communicates that the server understood the content type, the JSON syntax was valid, and the endpoint was reached, but the request could not be processed due to a semantic business logic error (the missing dependency).
 
 #### 2. Cybersecurity Risks of Exposing Java Stack Traces
 
-Allowing unhandled exceptions like `NullPointerException` to return raw Java stack traces represents a severe **Information Disclosure vulnerability**. A stack trace acts as a reconnaissance map of the backend, explicitly leaking:
+Allowing unhandled exceptions like NullPointerException to return raw Java stack traces represents a severe Information Disclosure vulnerability. A stack trace acts as a reconnaissance map of the backend, explicitly leaking:
 
-- Internal package naming conventions (e.g., `com.example.dao`)
+- Internal package naming conventions (e.g., com.example.dao)
 - File and line numbers where logic flaws occur
 - Names and versions of underlying frameworks (e.g., Jersey, Jackson)
 
-Malicious actors use this footprint to search vulnerability databases and craft targeted exploits. A **catch-all `ExceptionMapper`** mitigates this by intercepting crashes and sanitizing the response into a safe, generic `500 Internal Server Error`.
+Malicious actors use this footprint to search vulnerability databases and craft targeted exploits. A catch-all ExceptionMapper mitigates this by intercepting crashes and sanitizing the response into a safe, generic 500 Internal Server Error.
 
 #### 3. Advantages of JAX-RS Filters for Cross-Cutting Concerns
 
-Logging is a cross-cutting concern — distinct from core business logic but affecting the entire application. Manually inserting `Logger.info()` statements inside every resource method creates massive code duplication and tightly couples business logic to infrastructure.
+Logging is a cross-cutting concern — distinct from core business logic but affecting the entire application. Manually inserting Logger.info() statements inside every resource method creates massive code duplication and tightly couples business logic to infrastructure.
 
-**JAX-RS filters** (`ContainerRequestFilter` and `ContainerResponseFilter`) solve this by acting as **centralized interceptors**. Logging logic is defined in exactly one place, and the framework automatically applies it to every incoming request and outgoing response across the entire API — ensuring consistent formatting while keeping resource classes clean and focused solely on processing data.
+JAX-RS filters (ContainerRequestFilter and ContainerResponseFilter) solve this by acting as centralized interceptors. Logging logic is defined in exactly one place, and the framework automatically applies it to every incoming request and outgoing response across the entire API — ensuring consistent formatting while keeping resource classes clean and focused solely on processing data.
