@@ -125,9 +125,6 @@ curl -X POST http://localhost:8080/smart-campus-api/api/v1/sensors/TEMP-001/read
 ```
 
 ---
-
-## Report: Answers to Coursework Questions
-
 ### Part 1: Service Architecture & Setup
 
 #### 1. Default Lifecycle of a JAX-RS Resource Class & Data Synchronization
