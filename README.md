@@ -1,9 +1,5 @@
 # Smart Campus RESTful API
 
-**Author: Hasanjaya Perera | 20231509 (w2120668)**
-
----
-
 ## API Overview
 
 The Smart Campus API is a robust, highly available RESTful web service designed to manage campus infrastructure. Built exclusively with **Java and JAX-RS (Jersey)**, it provides a seamless interface for facilities managers and automated building systems to track Rooms, Sensors, and Historical Sensor Readings.
